@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<title>管理系统 · 花地湾打字练习系统</title>
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<div class="page">
+  <div class="topbar glass-card anim-in">
+    <div class="brand-mark" style="background:linear-gradient(150deg,#9a7bf0,#7a55d8);">管</div>
+    <div class="brand-text">
+      <div class="brand-school" id="bar-school">广东实验中学荔湾学校花地湾校区（初中部）</div>
+      <div class="brand-name">打字练习系统 · 管理端</div>
+    </div>
+    <div class="spacer"></div>
+    <span class="badge badge-off" id="role-badge">管理员</span>
+    <div class="user-chip">
+      <span class="who" id="chip-name">管理员</span>
+      <span class="avatar" id="chip-avatar">管</span>
+    </div>
+    <button class="btn btn-soft btn-sm" id="logout-btn" type="button">退出</button>
+  </div>
+
+  <div class="container">
+    <!-- TAB -->
+    <div class="section anim-in d1" style="margin-bottom:0;">
+      <div class="admin-tabs">
+        <button class="on" data-tab="students" type="button">学生管理</button>
+        <button data-tab="passages" type="button">文章库管理</button>
+        <button data-tab="stats" type="button">成绩统计</button>
+      </div>
+    </div>
+
+    <!-- 学生管理 -->
+    <div class="section tab-panel on" id="panel-students">
+      <div class="glass-card card-pad">
+        <div class="toolbar">
+          <input class="input search-input" id="student-search" type="search" placeholder="搜索姓名 / 学号 / 班级 / 邮箱…">
+          <div class="spacer"></div>
+          <span style="font-size:12.5px;color:var(--ink-3);">停用后学生将无法登录；管理员账号不可在此停用</span>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>姓名</th><th>学号</th><th>班级</th><th>邮箱</th><th>角色</th><th>状态</th><th>注册时间</th><th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="students-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 文章库管理 -->
+    <div class="section tab-panel" id="panel-passages">
+      <div class="glass-card card-pad">
+        <div class="toolbar">
+          <div class="chip-row">
+            <button class="btn btn-primary" id="passage-add-btn" type="button">＋ 新增文章</button>
+          </div>
+          <div class="spacer"></div>
+          <span style="font-size:12.5px;color:var(--ink-3);">删除文章前请先下架；已有成绩的文章不可删除</span>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>标题</th><th>类型</th><th>难度</th><th>字数</th><th>状态</th><th>创建时间</th><th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="passages-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 成绩统计 -->
+    <div class="section tab-panel" id="panel-stats">
+      <div class="glass-card card-pad">
+        <div class="toolbar">
+          <div class="seg seg-tabs" style="width:max-content;">
+            <button class="on" id="stats-btn-passage" type="button">按文章</button>
+            <button id="stats-btn-class" type="button">按班级</button>
+            <button id="stats-btn-student" type="button">按学生</button>
+          </div>
+          <div class="spacer"></div>
+          <span style="font-size:12.5px;color:var(--ink-3);">统计口径：<strong id="stats-label">按文章</strong></span>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th id="stats-col-name">文章</th><th>练习次数</th><th>平均正确率</th><th>平均净速度(字/分)</th><th>最佳速度(字/分)</th>
+              </tr>
+            </thead>
+            <tbody id="stats-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 文章编辑弹窗（管理端可复制） -->
+<div class="modal-mask" id="passage-modal">
+  <div class="modal-card" data-copyable>
+    <div class="modal-title" id="passage-modal-title">新增文章</div>
+    <div class="form-error-box" id="pf-error"></div>
+    <div class="field">
+      <label for="pf-title">文章标题 <span class="req">*</span></label>
+      <input class="input" id="pf-title" type="text" placeholder="例如：《春》朱自清 / A Letter to a Friend">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+      <div class="field">
+        <label for="pf-category">类型</label>
+        <select class="select" id="pf-category">
+          <option value="chinese">中文</option>
+          <option value="english">英文</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="pf-difficulty">难度</label>
+        <select class="select" id="pf-difficulty">
+          <option value="1">★ 简单</option>
+          <option value="2">★★ 中等</option>
+          <option value="3">★★★ 困难</option>
+        </select>
+      </div>
+    </div>
+    <div class="field">
+      <label for="pf-content">文章正文 <span class="req">*</span>（英文请保留空格；换行会自动规范为空格）</label>
+      <textarea class="textarea" id="pf-content" placeholder="在此粘贴文章全文…" data-copyable style="min-height:220px;"></textarea>
+    </div>
+    <div class="field">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+        <input type="checkbox" id="pf-enabled" checked style="width:16px;height:16px;">
+        上架（学生端可见可选）
+      </label>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-soft" id="pf-cancel-btn" type="button">取消</button>
+      <button class="btn btn-primary" id="pf-save-btn" type="button">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Supabase SDK（CDN UMD） -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/supabase-init.js"></script>
+<script src="assets/js/auth.js"></script>
+<script src="assets/js/practice-engine.js"></script>
+<script src="assets/js/admin.js"></script>
+<script src="assets/js/copyguard.js"></script>
+<script src="assets/js/watermark.js"></script>
+
+<script>
+(function () {
+  'use strict';
+  function $(id) { return document.getElementById(id); }
+  async function boot() {
+    try {
+      var ok = await APP.auth.guardAdmin();
+      if (!ok) return;
+      var p = APP.profile;
+      var isTeacher = p && p.role === 'teacher';
+      $('role-badge').textContent = isTeacher ? '教师' : '管理员';
+      $('chip-name').textContent = p.full_name || (isTeacher ? '教师' : '管理员');
+      $('chip-avatar').textContent = (p.full_name || (isTeacher ? '教' : '管')).charAt(0);
+      $('logout-btn').addEventListener('click', async function () {
+        try { await APP.auth.logout(); } catch (e) { /* ignore */ }
+        location.replace('index.html');
+      });
+      await APP.admin.init();
+    } catch (e) {
+      APP.auth.showFatal(APP.auth.friendlyError(e, '管理端初始化失败'));
+    }
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+</script>
+</body>
+</html>

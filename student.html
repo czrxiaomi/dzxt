@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<title>学生主页 · 花地湾打字练习系统</title>
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<div class="page">
+  <div class="topbar glass-card anim-in">
+    <div class="brand-mark">打</div>
+    <div class="brand-text">
+      <div class="brand-school" id="bar-school">广东实验中学荔湾学校花地湾校区（初中部）</div>
+      <div class="brand-name">花地湾打字练习系统 · 学生端</div>
+    </div>
+    <div class="spacer"></div>
+    <div class="user-chip">
+      <span class="who" id="chip-name">同学</span>
+      <span class="avatar" id="chip-avatar">生</span>
+    </div>
+    <button class="btn btn-soft btn-sm" id="logout-btn" type="button">退出</button>
+  </div>
+
+  <div class="container">
+    <!-- 欢迎卡 -->
+    <section class="section glass-card card-pad anim-in d1">
+      <div class="welcome-line">你好，<span id="welcome-name">同学</span> 👋</div>
+      <div class="welcome-sub">今天想练哪篇文章？坚持练习，让打字又快又准。</div>
+      <div style="height:4px;"></div>
+      <div class="info-grid">
+        <div class="info-item"><div class="k">姓名</div><div class="v" id="info-name">-</div></div>
+        <div class="info-item"><div class="k">学号</div><div class="v" id="info-no">-</div></div>
+        <div class="info-item"><div class="k">班级</div><div class="v" id="info-class">-</div></div>
+        <div class="info-item"><div class="k">邮箱</div><div class="v" id="info-email">-</div></div>
+      </div>
+    </section>
+
+    <!-- 待同步提醒 -->
+    <section class="section" id="pending-box" style="display:none;">
+      <div class="glass-card card-pad" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <span style="font-size:16px;">⚠️</span>
+        <div style="flex:1;min-width:200px;font-size:13.5px;color:var(--ink-2);">
+          有 <strong id="pending-num">0</strong> 条成绩因网络原因暂存本机，尚未同步到云端。
+        </div>
+        <button class="btn btn-primary btn-sm" id="retry-btn" type="button">立即同步</button>
+      </div>
+    </section>
+
+    <!-- 快速操作 -->
+    <section class="section">
+      <div class="dash-grid">
+        <div class="glass-card dash-card anim-in d2" id="go-practice">
+          <div class="dash-icon" style="background:linear-gradient(150deg,#5aa5f2,#3b7fdc);">⌨</div>
+          <h3>开始练习</h3>
+          <p>选择中文或英文文章，也可以随机来一篇。</p>
+        </div>
+        <div class="glass-card dash-card anim-in d3" id="go-history">
+          <div class="dash-icon" style="background:linear-gradient(150deg,#6fd3a0,#2ea878);">📈</div>
+          <h3>查看历史成绩</h3>
+          <p>回顾每次练习的正确率、速度与用时。</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 历史成绩 -->
+    <section class="section glass-card card-pad anim-in d4" id="history-sec">
+      <div class="card-title">
+        <span>我的历史成绩</span>
+        <span class="sub" id="history-tip">仅显示最近 50 条</span>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>时间</th>
+              <th>文章</th>
+              <th>正确率</th>
+              <th>净速度(字/分)</th>
+              <th>用时</th>
+              <th>错字</th>
+            </tr>
+          </thead>
+          <tbody id="history-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- Supabase SDK（CDN UMD） -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/supabase-init.js"></script>
+<script src="assets/js/auth.js"></script>
+<script src="assets/js/practice-engine.js"></script>
+<script src="assets/js/copyguard.js"></script>
+<script src="assets/js/watermark.js"></script>
+
+<script>
+(function () {
+  'use strict';
+  function $(id) { return document.getElementById(id); }
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function fmtDate(iso) {
+    if (!iso) return '-';
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return '-';
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  }
+
+  async function loadHistory() {
+    var tbody = $('history-tbody');
+    try {
+      var res = await APP.supabase.from('typing_records')
+        .select('id,passage_id,accuracy,speed,raw_speed,errors,duration_sec,finished_at')
+        .eq('user_id', APP.profile.id)
+        .order('finished_at', { ascending: false })
+        .limit(50);
+      if (res.error) throw res.error;
+      var list = res.data || [];
+      // 文章标题映射（学生仅能看到已上架文章）
+      var titleMap = {};
+      try {
+        var passages = await APP.practice.loadPassages({});
+        (passages || []).forEach(function (p) { titleMap[p.id] = p.title; });
+      } catch (e) { /* 标题映射失败不影响成绩列表 */ }
+      tbody.innerHTML = '';
+      if (!list.length) {
+        tbody.innerHTML = '<tr><td colspan="6" class="empty-tip">还没有练习记录，快去开始第一次练习吧</td></tr>';
+        return;
+      }
+      list.forEach(function (r) {
+        var tr = document.createElement('tr');
+        var title = titleMap[r.passage_id] || '（文章已下架）';
+        tr.innerHTML =
+          '<td class="num">' + fmtDate(r.finished_at) + '</td>' +
+          '<td><span title="' + esc(title) + '">' + esc(title) + '</span></td>' +
+          '<td class="num">' + (Number(r.accuracy || 0)).toFixed(1) + '%</td>' +
+          '<td class="num">' + (Number(r.speed || 0)).toFixed(1) + '</td>' +
+          '<td class="num">' + (Number(r.duration_sec || 0)) + ' 秒</td>' +
+          '<td class="num">' + (Number(r.errors || 0)) + '</td>';
+        tbody.appendChild(tr);
+      });
+    } catch (e) {
+      tbody.innerHTML = '<tr><td colspan="6" class="empty-tip">成绩加载失败：' + esc(APP.auth.friendlyError(e, '')) + '</td></tr>';
+    }
+  }
+
+  function updatePendingUI() {
+    var n = APP.practice.pendingCount();
+    var box = $('pending-box');
+    if (n > 0) {
+      box.style.display = 'block';
+      $('pending-num').textContent = String(n);
+    } else {
+      box.style.display = 'none';
+    }
+  }
+
+  async function retryPending() {
+    var btn = $('retry-btn');
+    btn.disabled = true;
+    try {
+      var r = await APP.practice.retryPendingSaves();
+      if (r.okCount > 0) APP.practice.toast('已同步 ' + r.okCount + ' 条成绩', 'ok');
+      if (r.failed > 0) APP.practice.toast('仍有 ' + r.failed + ' 条未同步，请检查网络', 'warn');
+      if (!r.failed) APP.practice.toast('全部成绩已同步', 'ok');
+    } catch (e) {
+      APP.practice.toast('同步失败：' + APP.auth.friendlyError(e, ''), 'err');
+    }
+    btn.disabled = false;
+    updatePendingUI();
+  }
+
+  function bindUI() {
+    $('go-practice').addEventListener('click', function () { location.href = 'practice.html'; });
+    $('go-history').addEventListener('click', function () {
+      $('history-sec').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    $('logout-btn').addEventListener('click', async function () {
+      try { await APP.auth.logout(); } catch (e) { /* ignore */ }
+      location.replace('index.html');
+    });
+    $('retry-btn').addEventListener('click', retryPending);
+  }
+
+  async function boot() {
+    try {
+      await APP.auth.guardStudent();
+      var p = APP.profile;
+      $('chip-name').textContent = p.full_name || '同学';
+      $('chip-avatar').textContent = (p.full_name || '学').charAt(0);
+      $('welcome-name').textContent = p.full_name || '同学';
+      $('info-name').textContent = p.full_name || '-';
+      $('info-no').textContent = p.student_no || '-';
+      $('info-class').textContent = p.class_name || '-';
+      $('info-email').textContent = p.email || '-';
+      document.title = '学生主页 · ' + (p.full_name || '');
+      bindUI();
+      updatePendingUI();
+      await loadHistory();
+      // 若存在未同步草稿，尝试自动同步一次（不打扰）
+      if (APP.practice.pendingCount() > 0) retryPending();
+    } catch (e) {
+      APP.auth.showFatal(APP.auth.friendlyError(e, '页面初始化失败'));
+    }
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+</script>
+</body>
+</html>

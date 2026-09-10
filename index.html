@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<title>登录 · 花地湾打字练习系统</title>
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<div class="page">
+  <div class="centered-wrap">
+    <div class="auth-grid">
+      <!-- 左：品牌氛围区 -->
+      <div class="auth-hero anim-in">
+        <div class="brand-mark" style="width:56px;height:56px;border-radius:18px;font-size:26px;">打</div>
+        <div style="height:16px;"></div>
+        <div class="hero-title">广东实验中学荔湾学校<br>花地湾校区（初中部）打字练习</div>
+        <div class="hero-sub">选一篇中文或英文文章，逐字练习打字。实时显示正确率与速度，成绩自动云端保存，方便老师查看班级练习情况。</div>
+        <div class="hero-badges">
+          <span class="hero-badge">中文 / 英文文章</span>
+          <span class="hero-badge">实时逐字比对</span>
+          <span class="hero-badge">成绩云端保存</span>
+        </div>
+      </div>
+
+      <!-- 右：登录/注册卡片 -->
+      <div class="glass-card auth-card anim-in d2">
+        <div class="seg" id="seg">
+          <button type="button" id="tab-login" class="on">登录</button>
+          <button type="button" id="tab-register">注册</button>
+        </div>
+
+        <!-- 登录面板 -->
+        <div id="panel-login">
+          <div class="form-error-box" id="login-err"></div>
+          <div class="field">
+            <label for="login-email">邮箱</label>
+            <input class="input" id="login-email" type="email" inputmode="email" autocomplete="username" placeholder="请输入学校邮箱或常用邮箱">
+          </div>
+          <div class="field">
+            <label for="login-pwd">密码</label>
+            <input class="input" id="login-pwd" type="password" autocomplete="current-password" placeholder="请输入密码">
+          </div>
+          <button class="btn btn-primary btn-block" id="login-btn" type="button">登 录</button>
+          <div class="auth-foot">
+            忘记密码请联系老师处理 ·
+            <a href="admin.html" id="admin-entry">教师登录</a>
+          </div>
+        </div>
+
+        <!-- 注册面板 -->
+        <div id="panel-register" style="display:none;">
+          <div class="form-error-box" id="reg-err"></div>
+          <div class="field">
+            <label>我是</label>
+            <div class="seg" id="reg-role-seg" style="margin-bottom:0;">
+              <button type="button" class="on" data-role="student">学生</button>
+              <button type="button" data-role="teacher">教师</button>
+            </div>
+          </div>
+          <div class="field">
+            <label for="reg-name">姓名 <span class="req">*</span></label>
+            <input class="input" id="reg-name" type="text" autocomplete="name" placeholder="请输入真实姓名">
+          </div>
+          <div id="reg-student-fields">
+            <div class="field">
+              <label for="reg-no">学号 <span class="req">*</span></label>
+              <input class="input" id="reg-no" type="text" autocomplete="off" placeholder="请输入学号（全校唯一）">
+            </div>
+            <div class="field">
+              <label for="reg-class">班级 <span class="req">*</span></label>
+              <input class="input" id="reg-class" type="text" autocomplete="off" placeholder="例如：初一（1）班">
+            </div>
+          </div>
+          <div class="field">
+            <label for="reg-email">邮箱 <span class="req">*</span></label>
+            <input class="input" id="reg-email" type="email" inputmode="email" autocomplete="off" placeholder="用于登录的邮箱">
+          </div>
+          <div class="field">
+            <label for="reg-pwd">密码 <span class="req">*</span></label>
+            <input class="input" id="reg-pwd" type="password" autocomplete="new-password" placeholder="至少 6 位">
+          </div>
+          <div class="field">
+            <label for="reg-pwd2">确认密码 <span class="req">*</span></label>
+            <input class="input" id="reg-pwd2" type="password" autocomplete="new-password" placeholder="再输入一次密码">
+          </div>
+          <button class="btn btn-primary btn-block" id="reg-btn" type="button">学生注册</button>
+          <div class="auth-foot">已有账号？<a href="javascript:void(0)" id="goto-login">去登录</a></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Supabase SDK（CDN UMD） -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- 配置与初始化 -->
+<script src="assets/js/config.js"></script>
+<script src="assets/js/supabase-init.js"></script>
+<script src="assets/js/auth.js"></script>
+<script src="assets/js/practice-engine.js"></script>
+<script src="assets/js/copyguard.js"></script>
+<script src="assets/js/watermark.js"></script>
+
+<script>
+(function () {
+  'use strict';
+  function $(id) { return document.getElementById(id); }
+  function show(id) { $(id).style.display = 'block'; }
+  function hide(id) { $(id).style.display = 'none'; }
+  function setBusy(btn, busy, txt) {
+    btn.disabled = busy;
+    if (txt) btn.textContent = txt;
+  }
+  var emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  var regRole = 'student';
+  function isManagerRole(role) { return role === 'teacher' || role === 'admin'; }
+  function routeHome(p) {
+    if (p && isManagerRole(p.role)) { location.replace('admin.html'); }
+    else { location.replace('student.html'); }
+  }
+  function setRegRole(role) {
+    regRole = role === 'teacher' ? 'teacher' : 'student';
+    var isTeacher = regRole === 'teacher';
+    $('reg-role-seg').querySelectorAll('button').forEach(function (b) {
+      b.classList.toggle('on', b.getAttribute('data-role') === regRole);
+    });
+    $('reg-student-fields').style.display = isTeacher ? 'none' : 'block';
+    $('reg-btn').textContent = isTeacher ? '教师注册' : '学生注册';
+    hide('reg-err');
+  }
+  $('reg-role-seg').addEventListener('click', function (e) {
+    var b = e.target && e.target.closest ? e.target.closest('button[data-role]') : null;
+    if (b) setRegRole(b.getAttribute('data-role'));
+  });
+
+  function switchAuth(which) {
+    var login = which === 'login';
+    $('tab-login').classList.toggle('on', login);
+    $('tab-register').classList.toggle('on', !login);
+    show(login ? 'panel-login' : 'panel-register');
+    hide(login ? 'panel-register' : 'panel-login');
+    hide('login-err');
+    hide('reg-err');
+  }
+
+  $('tab-login').addEventListener('click', function () { switchAuth('login'); });
+  $('tab-register').addEventListener('click', function () { switchAuth('register'); });
+  $('goto-login').addEventListener('click', function () { switchAuth('login'); });
+
+  /* 已登录则自动进入对应主页 */
+  async function boot() {
+    try {
+      var session = await APP.auth.getSession();
+      if (session) {
+        var p = await APP.auth.loadProfile(true);
+        if (p) { routeHome(p); return; }
+        location.replace('student.html');
+      }
+    } catch (e) {
+      // 网络/SDK 问题：留在登录页，用户操作时会提示
+      console.warn('[index] boot:', e);
+    }
+  }
+
+  async function doLogin() {
+    var email = $('login-email').value.trim();
+    var pwd = $('login-pwd').value;
+    var errBox = $('login-err');
+    errBox.textContent = ''; errBox.classList.remove('show');
+    if (!emailRe.test(email)) {
+      errBox.textContent = '请输入正确的邮箱格式'; errBox.classList.add('show'); return;
+    }
+    if (!pwd) {
+      errBox.textContent = '请输入密码'; errBox.classList.add('show'); return;
+    }
+    var btn = $('login-btn');
+    setBusy(btn, true, '登录中…');
+    try {
+      var r = await APP.auth.login(email, pwd);
+      routeHome(r.profile);
+    } catch (e) {
+      errBox.textContent = APP.auth.friendlyError(e, '登录失败，请稍后重试');
+      errBox.classList.add('show');
+      setBusy(btn, false, '登 录');
+    }
+  }
+
+  async function doRegister() {
+    var isTeacher = regRole === 'teacher';
+    var name = $('reg-name').value.trim();
+    var no = isTeacher ? '' : $('reg-no').value.trim();
+    var cls = isTeacher ? '' : $('reg-class').value.trim();
+    var email = $('reg-email').value.trim();
+    var pwd = $('reg-pwd').value;
+    var pwd2 = $('reg-pwd2').value;
+    var errBox = $('reg-err');
+    errBox.textContent = ''; errBox.classList.remove('show');
+
+    if (!name) { errBox.textContent = '请填写姓名'; errBox.classList.add('show'); return; }
+    if (!isTeacher) {
+      if (!no) { errBox.textContent = '请填写学号'; errBox.classList.add('show'); return; }
+      if (!cls) { errBox.textContent = '请填写班级'; errBox.classList.add('show'); return; }
+    }
+    if (!emailRe.test(email)) { errBox.textContent = '请输入正确的邮箱格式'; errBox.classList.add('show'); return; }
+    if (pwd.length < 6) { errBox.textContent = '密码长度至少 6 位'; errBox.classList.add('show'); return; }
+    if (pwd !== pwd2) { errBox.textContent = '两次输入的密码不一致'; errBox.classList.add('show'); return; }
+
+    var btn = $('reg-btn');
+    var original = isTeacher ? '教师注册' : '学生注册';
+    setBusy(btn, true, '注册中…');
+    try {
+      var r = await APP.auth.register({
+        role: regRole, email: email, password: pwd, full_name: name,
+        student_no: no, class_name: cls
+      });
+      routeHome(r.profile);
+    } catch (e) {
+      errBox.textContent = APP.auth.friendlyError(e, '注册失败，请稍后重试');
+      errBox.classList.add('show');
+      setBusy(btn, false, original);
+    }
+  }
+
+  $('login-btn').addEventListener('click', doLogin);
+  $('reg-btn').addEventListener('click', doRegister);
+  $('login-pwd').addEventListener('keydown', function (e) { if (e.key === 'Enter') doLogin(); });
+  $('reg-pwd2').addEventListener('keydown', function (e) { if (e.key === 'Enter') doRegister(); });
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+})();
+</script>
+</body>
+</html>

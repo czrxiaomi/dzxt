@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<title>打字练习 · 花地湾打字练习系统</title>
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<div class="page">
+  <div class="topbar glass-card anim-in">
+    <div class="brand-mark">打</div>
+    <div class="brand-text">
+      <div class="brand-school" id="bar-school">广东实验中学荔湾学校花地湾校区（初中部）</div>
+      <div class="brand-name">打字练习</div>
+    </div>
+    <div class="spacer"></div>
+    <button class="btn btn-soft btn-sm" id="to-home" type="button">学生主页</button>
+  </div>
+
+  <div class="container">
+    <!-- ======= 视图一：选择文章 ======= -->
+    <section class="section glass-card card-pad anim-in d1" id="view-select">
+      <div class="card-title">
+        <span>选择练习文章</span>
+        <button class="btn btn-primary btn-sm" id="btn-random" type="button">🎲 随机一篇</button>
+      </div>
+      <div class="toolbar" style="margin-bottom:18px;">
+        <div class="chip-row" id="cat-chips">
+          <button class="chip on" data-cat="all">全部</button>
+          <button class="chip" data-cat="chinese">中文</button>
+          <button class="chip" data-cat="english">英文</button>
+        </div>
+        <div class="spacer"></div>
+        <div class="chip-row" id="diff-chips">
+          <button class="chip on" data-diff="0">全部难度</button>
+          <button class="chip" data-diff="1">★</button>
+          <button class="chip" data-diff="2">★★</button>
+          <button class="chip" data-diff="3">★★★</button>
+        </div>
+      </div>
+      <div id="loading-tip" class="empty-tip" style="padding:60px 10px;">文章加载中…</div>
+      <div id="article-grid" class="article-grid" style="display:none;"></div>
+      <div id="empty-tip" class="empty-tip" style="display:none;">
+        <div class="big">📭</div>
+        暂无符合条件的文章，请稍后刷新重试，或联系老师添加。
+      </div>
+    </section>
+
+    <!-- ======= 视图二：练习中 ======= -->
+    <section class="section glass-card card-pad" id="view-practice" style="display:none;">
+      <div class="practice-head">
+        <button class="btn btn-ghost btn-sm" id="btn-quit" type="button">← 返回</button>
+        <span class="badge" id="pt-badge">中文</span>
+        <span style="font-weight:800;font-size:16px;" id="pt-title">文章标题</span>
+        <div class="spacer"></div>
+        <span class="num" style="font-size:13px;color:var(--ink-3);" id="pt-progress-text">0 / 0</span>
+      </div>
+
+      <div class="stat-grid" style="margin-bottom:16px;">
+        <div class="stat-cell"><div class="stat-value ok" id="st-acc">0.0%</div><div class="stat-label">正确率</div></div>
+        <div class="stat-cell"><div class="stat-value" id="st-speed">0</div><div class="stat-label">速度 (字/分)</div></div>
+        <div class="stat-cell"><div class="stat-value" id="st-time">0:00</div><div class="stat-label">用时</div></div>
+        <div class="stat-cell"><div class="stat-value err" id="st-err">0</div><div class="stat-label">错误字符</div></div>
+      </div>
+
+      <div class="progress-track"><div class="progress-bar" id="pt-progress"></div></div>
+
+      <div class="chars-box" id="chars-box" style="margin-top:14px;"></div>
+
+      <div style="height:14px;"></div>
+      <div class="typing-pad" id="typing-pad">
+        <span class="dot"></span>
+        <textarea class="typing-input" id="type-input" rows="1" placeholder="在这里开始打字…"
+          autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false"
+          data-paste-block enterkeyhint="go" style="line-height:1.5;padding-top:8px;padding-bottom:8px;"></textarea>
+      </div>
+      <div style="height:10px;"></div>
+      <div style="font-size:12px;color:var(--ink-3);line-height:1.8;">
+        提示：中文文章请切换至拼音输入法，输入完成后按空格或回车选字上屏；
+        打错的字符会标红，删除错字即可继续；正确部分会自动从输入框中清除，无需手动删除。
+      </div>
+    </section>
+
+    <!-- ======= 视图三：成绩结果 ======= -->
+    <section class="section glass-card card-pad" id="view-result" style="display:none;">
+      <div class="practice-head">
+        <span style="font-weight:800;font-size:16px;" id="rs-title">练习完成</span>
+        <div class="spacer"></div>
+        <span class="badge" id="rs-save-badge">保存中…</span>
+      </div>
+      <div class="result-hero">
+        <div class="result-circle">
+          <div class="num" id="rs-acc">0.0%</div>
+          <div class="cap">正确率</div>
+        </div>
+        <div class="result-grid">
+          <div class="stat-cell"><div class="stat-value" id="rs-speed">0</div><div class="stat-label">净速度（字/分，按正确字符计）</div></div>
+          <div class="stat-cell"><div class="stat-value" id="rs-raw">0</div><div class="stat-label">毛速度（字/分，含错字）</div></div>
+          <div class="stat-cell"><div class="stat-value" id="rs-time">0 秒</div><div class="stat-label">用时</div></div>
+          <div class="stat-cell"><div class="stat-value err" id="rs-err">0</div><div class="stat-label">错误字符</div></div>
+        </div>
+        <div id="rs-save-tip" style="font-size:13px;color:var(--ink-3);margin-top:14px;">正在自动保存成绩到云端…</div>
+        <div style="display:none;" id="rs-retry-wrap">
+          <button class="btn btn-primary btn-sm" id="rs-retry" type="button">重新尝试保存</button>
+        </div>
+        <div style="height:20px;"></div>
+        <div class="btn-row center">
+          <button class="btn btn-primary" id="btn-again" type="button">再练一遍</button>
+          <button class="btn btn-soft" id="btn-back-list" type="button">返回文章列表</button>
+          <button class="btn btn-ghost" id="btn-home" type="button">学生主页</button>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- Supabase SDK（CDN UMD） -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/supabase-init.js"></script>
+<script src="assets/js/auth.js"></script>
+<script src="assets/js/practice-engine.js"></script>
+<script src="assets/js/copyguard.js"></script>
+<script src="assets/js/watermark.js"></script>
+
+<script>
+(function () {
+  'use strict';
+  function $(id) { return document.getElementById(id); }
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function starsHtml(d) {
+    var n = Number(d || 1); if (n < 1) n = 1; if (n > 3) n = 3;
+    return '<span class="stars">' + '★★★★★'.slice(0, n) + '</span><span style="opacity:.3">' + '★★★★★'.slice(n) + '</span>';
+  }
+  function catMeta(c) {
+    return c === 'chinese' ? { text: '中文', cls: 'badge-chinese' } : c === 'english' ? { text: '英文', cls: 'badge-english' } : { text: (c || '文章'), cls: 'badge-off' };
+  }
+
+  var state = {
+    passages: [],
+    cat: 'all',
+    diff: 0,
+    current: null,
+    result: null,
+    saveDone: false,
+    savedOk: false
+  };
+
+  function filtered() {
+    return state.passages.filter(function (p) {
+      if (state.cat !== 'all' && p.category !== state.cat) return false;
+      if (Number(state.diff) !== 0 && Number(p.difficulty) !== Number(state.diff)) return false;
+      return true;
+    });
+  }
+
+  function renderGrid() {
+    var grid = $('article-grid');
+    var empty = $('empty-tip');
+    var list = filtered();
+    grid.innerHTML = '';
+    if (!list.length) {
+      grid.style.display = 'none';
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+    grid.style.display = 'grid';
+    list.forEach(function (p) {
+      var cm = catMeta(p.category);
+      var preview = String(p.content || '').replace(/\s+/g, ' ');
+      if (preview.length > 70) preview = preview.slice(0, 70) + '…';
+      var card = document.createElement('div');
+      card.className = 'glass-card article-card';
+      card.setAttribute('data-id', p.id);
+      card.innerHTML =
+        '<div class="row1">' +
+          '<span class="article-title">' + esc(p.title || '未命名文章') + '</span>' +
+          '<span class="badge ' + cm.cls + '">' + cm.text + '</span>' +
+        '</div>' +
+        '<div>' + starsHtml(p.difficulty) + '</div>' +
+        '<div class="article-preview">' + esc(preview) + '</div>' +
+        '<div class="article-meta"><span>' + String(p.content || '').length + ' 字</span><span>点击开始练习</span></div>';
+      card.addEventListener('click', function () { startPractice(p); });
+      grid.appendChild(card);
+    });
+  }
+
+  function bindChips() {
+    var catBox = $('cat-chips');
+    catBox.addEventListener('click', function (e) {
+      var b = e.target && e.target.closest ? e.target.closest('button[data-cat]') : null;
+      if (!b) return;
+      catBox.querySelectorAll('button').forEach(function (x) { x.classList.toggle('on', x === b); });
+      state.cat = b.getAttribute('data-cat');
+      renderGrid();
+    });
+    var diffBox = $('diff-chips');
+    diffBox.addEventListener('click', function (e) {
+      var b = e.target && e.target.closest ? e.target.closest('button[data-diff]') : null;
+      if (!b) return;
+      diffBox.querySelectorAll('button').forEach(function (x) { x.classList.toggle('on', x === b); });
+      state.diff = Number(b.getAttribute('data-diff'));
+      renderGrid();
+    });
+    $('btn-random').addEventListener('click', function () {
+      var list = filtered();
+      if (!list.length) { APP.practice.toast('当前筛选下没有文章', 'warn'); return; }
+      startPractice(list[Math.floor(Math.random() * list.length)]);
+    });
+  }
+
+  function switchView(name) {
+    ['select', 'practice', 'result'].forEach(function (v) {
+      $('view-' + v).style.display = v === name ? 'block' : 'none';
+    });
+    if (name === 'practice') {
+      window.scrollTo(0, 0);
+      setTimeout(function () { focusInput(); }, 120);
+    } else {
+      window.scrollTo(0, 0);
+    }
+  }
+
+  function focusInput() {
+    var el = $('type-input');
+    try {
+      el.focus();
+      var len = el.value.length;
+      el.setSelectionRange(len, len);
+    } catch (e) { /* ignore */ }
+  }
+
+  function resetStats() {
+    $('st-acc').textContent = '0.0%';
+    $('st-speed').textContent = '0';
+    $('st-time').textContent = '0:00';
+    $('st-err').textContent = '0';
+    $('pt-progress').style.width = '0%';
+    $('pt-progress-text').textContent = '0 / 0';
+  }
+
+  function startPractice(p) {
+    state.current = p;
+    state.result = null;
+    state.saveDone = false;
+    state.savedOk = false;
+    var cm = catMeta(p.category);
+    $('pt-badge').textContent = cm.text;
+    $('pt-badge').className = 'badge ' + cm.cls;
+    $('pt-title').textContent = p.title || '未命名文章';
+    resetStats();
+    var input = $('type-input');
+    input.disabled = false;
+    input.value = '';
+    switchView('practice');
+    APP.practice.stop();
+    try {
+      APP.practice.start(p, {
+        charsBox: $('chars-box'),
+        inputEl: input,
+        accEl: $('st-acc'),
+        speedEl: $('st-speed'),
+        errEl: $('st-err'),
+        timeEl: $('st-time'),
+        progressEl: $('pt-progress'),
+        progressTextEl: $('pt-progress-text'),
+        onFinish: onFinish
+      });
+    } catch (e) {
+      APP.practice.toast('练习启动失败：' + (e && e.message ? e.message : e), 'err');
+    }
+  }
+
+  function onFinish(result) {
+    state.result = result;
+    var cm = catMeta(result.passage ? result.passage.category : '');
+    $('rs-title').textContent = (result.passage ? result.passage.title + ' · ' : '') + '练习完成';
+    $('rs-acc').textContent = result.accuracy.toFixed(1) + '%';
+    $('rs-speed').textContent = result.speed.toFixed(1);
+    $('rs-raw').textContent = result.rawSpeed.toFixed(1);
+    $('rs-time').textContent = result.durationSec + ' 秒';
+    $('rs-err').textContent = String(result.errors);
+    switchView('result');
+    saveResult();
+  }
+
+  async function saveResult() {
+    if (!state.result || state.saveDone) return;
+    state.saveDone = true;
+    var badge = $('rs-save-badge');
+    var tip = $('rs-save-tip');
+    var retryWrap = $('rs-retry-wrap');
+    badge.textContent = '保存中…';
+    tip.style.display = 'block';
+    tip.textContent = '正在自动保存成绩到云端…';
+    retryWrap.style.display = 'none';
+    try {
+      var p = APP.profile;
+      var rec = {
+        passage_id: state.result.passageId,
+        accuracy: state.result.accuracy,
+        speed: state.result.speed,
+        raw_speed: state.result.rawSpeed,
+        keystrokes: state.result.keystrokes,
+        errors: state.result.errors,
+        duration_sec: state.result.durationSec,
+        draftId: 'r' + Date.now() + Math.floor(Math.random() * 1000)
+      };
+      var r = await APP.practice.saveRecordWithDraft(rec, p);
+      if (r.ok) {
+        state.savedOk = true;
+        badge.textContent = '已保存';
+        badge.className = 'badge badge-english';
+        tip.textContent = '成绩已保存到云端';
+      } else {
+        state.savedOk = false;
+        badge.textContent = '待同步';
+        badge.className = 'badge badge-off';
+        tip.textContent = '网络异常，成绩已暂存本机。可点击下方按钮重新尝试保存。';
+        retryWrap.style.display = 'block';
+      }
+    } catch (e) {
+      state.savedOk = false;
+      badge.textContent = '待同步';
+      badge.className = 'badge badge-off';
+      tip.textContent = '保存异常：' + APP.auth.friendlyError(e, '成绩已暂存本机，稍后可重试');
+      retryWrap.style.display = 'block';
+    }
+  }
+
+  async function retrySave() {
+    var badge = $('rs-save-badge');
+    badge.textContent = '同步中…';
+    badge.className = 'badge';
+    $('rs-retry-wrap').style.display = 'none';
+    $('rs-save-tip').textContent = '正在尝试重新保存…';
+    try {
+      var r = await APP.practice.retryPendingSaves();
+      if (r.failed === 0) {
+        state.savedOk = true;
+        badge.textContent = '已保存';
+        badge.className = 'badge badge-english';
+        $('rs-save-tip').textContent = '成绩已保存到云端';
+      } else {
+        badge.textContent = '待同步';
+        badge.className = 'badge badge-off';
+        $('rs-save-tip').textContent = '仍无法连接云端，请检查网络后重试（共 ' + r.failed + ' 条待同步）。';
+        $('rs-retry-wrap').style.display = 'block';
+      }
+    } catch (e) {
+      badge.textContent = '待同步';
+      badge.className = 'badge badge-off';
+      $('rs-save-tip').textContent = '同步失败：' + APP.auth.friendlyError(e, '请稍后再试');
+      $('rs-retry-wrap').style.display = 'block';
+    }
+  }
+
+  function quitPractice() {
+    if (APP.practice.isRunning()) {
+      if (!window.confirm('练习尚未完成，确定中途退出吗？本次成绩将不会保存。')) return;
+    }
+    APP.practice.stop();
+    $('type-input').disabled = false;
+    switchView('select');
+  }
+
+  function bindMain() {
+    $('btn-quit').addEventListener('click', quitPractice);
+    $('btn-again').addEventListener('click', function () {
+      if (state.current) startPractice(state.current);
+    });
+    $('btn-back-list').addEventListener('click', function () { switchView('select'); });
+    $('btn-home').addEventListener('click', function () { location.href = 'student.html'; });
+    $('to-home').addEventListener('click', function () {
+      if (APP.practice.isRunning()) {
+        if (!window.confirm('练习尚未完成，确定返回学生主页吗？本次成绩将不会保存。')) return;
+      }
+      location.href = 'student.html';
+    });
+    $('rs-retry').addEventListener('click', retrySave);
+    $('chars-box').addEventListener('click', focusInput);
+    // 中途关闭页面提醒
+    window.addEventListener('beforeunload', function (e) {
+      if (APP.practice.isRunning()) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    });
+  }
+
+  function bindTypeInput() {
+    var input = $('type-input');
+    var composing = false;
+    input.addEventListener('compositionstart', function () {
+      composing = true;
+      APP.practice.markComposing(true);
+    });
+    input.addEventListener('compositionend', function () {
+      composing = false;
+      APP.practice.markComposing(false);
+      setTimeout(function () { APP.practice.handleInputSafe(); }, 0);
+    });
+    input.addEventListener('input', function (e) {
+      if (e.isComposing || composing) return;
+      APP.practice.handleInputSafe();
+    });
+    // 允许通过点击其它区域后回车继续（防止光标丢失后输入无效）
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') quitPractice();
+    });
+  }
+
+  async function boot() {
+    try {
+      await APP.auth.guardStudent();
+      bindMain();
+      bindTypeInput();
+      bindChips();
+      var list = await APP.practice.loadPassages({});
+      state.passages = list || [];
+      $('loading-tip').style.display = 'none';
+      if (!state.passages.length) {
+        $('empty-tip').style.display = 'block';
+        $('article-grid').style.display = 'none';
+      } else {
+        renderGrid();
+      }
+    } catch (e) {
+      APP.auth.showFatal(APP.auth.friendlyError(e, '页面初始化失败，请刷新重试'));
+    }
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+</script>
+</body>
+</html>
