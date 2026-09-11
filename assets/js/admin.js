@@ -77,16 +77,19 @@
       var statusBadge = s.is_active === false
         ? '<span class="badge badge-off">已停用</span>'
         : '<span class="badge badge-english">正常</span>';
+      var isStudent = s.role === 'student' || !s.role;
+      // 学生无邮箱：账号列不展示虚拟邮箱，提示学号登录；姓名缺失时用学号兜底
+      var accountText = isStudent ? '学号登录' : (s.email || '-');
       tr.innerHTML =
-        '<td><strong>' + esc(s.full_name || '-') + '</strong></td>' +
         '<td>' + esc(s.student_no || '-') + '</td>' +
         '<td>' + esc(s.class_name || '-') + '</td>' +
-        '<td>' + esc(s.email || '-') + '</td>' +
+        '<td><strong>' + esc(s.full_name || s.student_no || '-') + '</strong></td>' +
+        '<td>' + esc(accountText) + '</td>' +
         '<td>' + roleBadge + '</td>' +
         '<td>' + statusBadge + '</td>' +
         '<td class="num">' + fmtDate(s.created_at) + '</td>' +
         '<td><div class="row-actions">' +
-          '<button class="btn btn-ghost btn-sm" data-act="email" data-id="' + s.id + '">复制邮箱</button>' +
+          '<button class="btn btn-ghost btn-sm" data-act="email" data-id="' + s.id + '">' + (isStudent ? '复制学号' : '复制邮箱') + '</button>' +
           (s.role === 'student'
             ? (s.is_active === false
                 ? '<button class="btn btn-soft btn-sm" data-act="enable" data-id="' + s.id + '">启用</button>'
@@ -106,8 +109,10 @@
       var stu = state.students.find(function (x) { return x.id === id; });
       if (!stu) return;
       if (act === 'email') {
-        try { navigator.clipboard.writeText(stu.email || ''); } catch (err) { /* Safari 需 https */ }
-        toast('邮箱已复制', 'ok');
+        var isStu = stu.role === 'student' || !stu.role;
+        var copyText = isStu ? (stu.student_no || '') : (stu.email || '');
+        try { if (navigator.clipboard && copyText) navigator.clipboard.writeText(copyText); } catch (err) { /* Safari 需 https */ }
+        toast(isStu ? '学号已复制' : '邮箱已复制', 'ok');
       } else if (act === 'enable') {
         setStudentActive(id, true);
       } else if (act === 'disable') {
@@ -309,7 +314,8 @@
         name = r._profile && r._profile.class_name ? r._profile.class_name : '（未填写班级）';
       } else {
         key = 'u' + r.user_id;
-        name = r._profile ? (r._profile.full_name + (r._profile.class_name ? ' · ' + r._profile.class_name : '')) : '（未知学生）';
+        var pn = r._profile ? (r._profile.full_name || r._profile.student_no || '未填学号') : '';
+        name = r._profile ? (pn + (r._profile.class_name ? ' · ' + r._profile.class_name : '')) : '（未知学生）';
       }
       if (!groups[key]) {
         groups[key] = { name: name, attempts: 0, accSum: 0, speedSum: 0, rawSum: 0, best: -1, errSum: 0 };

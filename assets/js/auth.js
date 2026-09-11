@@ -17,6 +17,15 @@
     return APP.supabase;
   }
 
+  /* ===== 学生账号标识：学号 → 系统内部虚拟邮箱 =====
+   * 学生没有真实邮箱，注册/登录时统一把学号映射为 `${学号}@stu.dzxt.local`
+   * 该地址仅作 Supabase Auth 的账号标识，系统不会向其发送任何邮件 */
+  var STU_EMAIL_DOMAIN = 'stu.dzxt.local';
+  function isEmailLike(v) { return String(v == null ? '' : v).indexOf('@') >= 0; }
+  function stuEmail(studentNo) {
+    return String(studentNo == null ? '' : studentNo).trim().toLowerCase() + '@' + STU_EMAIL_DOMAIN;
+  }
+
   /** 把 Supabase 英文错误映射为友好中文 */
   function humanError(e, extra) {
     if (!e) return extra || '操作失败，请稍后重试';
@@ -90,11 +99,22 @@
       return APP.profile || null;
     },
 
-    /** 登录：邮箱 + 密码 */
-    async login(email, password) {
+    /** 登录：学生用学号（内部转虚拟邮箱），教师用邮箱 + 密码 */
+    async login(account, password) {
       var sb = client();
-      var res = await sb.auth.signInWithPassword({ email: email, password: password });
-      if (res.error) throw res.error;
+      var id = String(account == null ? '' : account).trim();
+      var byEmail = isEmailLike(id);
+      var res = await sb.auth.signInWithPassword({
+        email: byEmail ? id : stuEmail(id),
+        password: password
+      });
+      if (res.error) {
+        var m = String(res.error.message || '').toLowerCase();
+        if (/invalid login credentials/.test(m)) {
+          throw new Error(byEmail ? '邮箱或密码错误' : '学号或密码错误');
+        }
+        throw res.error;
+      }
       APP.session = res.data.session;
       if (!APP.session) throw new Error('登录失败：未返回会话，请重试');
       // 读取角色，检查是否被停用
@@ -106,15 +126,19 @@
       return { profile: p };
     },
 
-    /** 注册：身份(学生/教师)+邮箱+密码+姓名，教师无需学号/班级，成功后自动登录 */
+    /** 注册：学生用「学号+班级+密码」（学号转虚拟邮箱、姓名用学号兜底），教师用「姓名+邮箱+密码」，成功后自动登录 */
     async register(fields) {
       var sb = client();
       var role = fields.role === 'teacher' ? 'teacher' : 'student';
       var isTeacher = role === 'teacher';
+      var studentNo = isTeacher ? '' : String(fields.student_no || '').trim();
+      // 学生：账号标识 = 学号虚拟邮箱；姓名缺失时用学号兜底（页面上以学号展示）
+      var email = isTeacher ? String(fields.email || '').trim() : stuEmail(studentNo);
+      var fullName = isTeacher ? String(fields.full_name || '').trim() : studentNo;
       // 1) 学号唯一性预校验（仅学生注册；依赖 schema.sql 提供的 is_student_no_taken）
-      if (!isTeacher && fields.student_no) {
+      if (!isTeacher && studentNo) {
         try {
-          var chk = await sb.rpc('is_student_no_taken', { p_student_no: fields.student_no });
+          var chk = await sb.rpc('is_student_no_taken', { p_student_no: studentNo });
           if (chk && chk.error) {
             // schema 未执行时跳过预检，交给数据库唯一约束兜底
             console.warn('[auth] is_student_no_taken rpc:', chk.error && chk.error.message);
@@ -128,21 +152,27 @@
       }
       // 2) 注册（身份/姓名/学号/班级写入 user metadata，由 schema.sql 触发器写入 profiles）
       var res = await sb.auth.signUp({
-        email: fields.email,
+        email: email,
         password: fields.password,
         options: {
           data: {
             role: role,
-            full_name: fields.full_name,
-            student_no: isTeacher ? '' : (fields.student_no || ''),
+            full_name: fullName,
+            student_no: studentNo,
             class_name: isTeacher ? '' : (fields.class_name || '')
           }
         }
       });
-      if (res.error) throw res.error;
+      if (res.error) {
+        var em = String(res.error.message || '').toLowerCase();
+        if (/already registered|user_already_exists|already been registered|duplicate key/i.test(em)) {
+          throw new Error(isTeacher ? '该邮箱已被注册，请直接登录' : '该学号已注册，请直接登录或换一个学号');
+        }
+        throw res.error;
+      }
       // 关闭邮箱验证时 signUp 直接返回 session；个别情况未返回时尝试自动登录一次
       if (!(res.data && res.data.session)) {
-        var s2 = await sb.auth.signInWithPassword({ email: fields.email, password: fields.password });
+        var s2 = await sb.auth.signInWithPassword({ email: email, password: fields.password });
         if (s2.error) throw s2.error;
         res.data.session = s2.data.session;
       }

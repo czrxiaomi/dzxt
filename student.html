@@ -30,10 +30,8 @@
       <div class="welcome-sub">今天想练哪篇文章？坚持练习，让打字又快又准。</div>
       <div style="height:4px;"></div>
       <div class="info-grid">
-        <div class="info-item"><div class="k">姓名</div><div class="v" id="info-name">-</div></div>
         <div class="info-item"><div class="k">学号</div><div class="v" id="info-no">-</div></div>
         <div class="info-item"><div class="k">班级</div><div class="v" id="info-class">-</div></div>
-        <div class="info-item"><div class="k">邮箱</div><div class="v" id="info-email">-</div></div>
       </div>
     </section>
 
@@ -192,14 +190,13 @@
     try {
       await APP.auth.guardStudent();
       var p = APP.profile;
-      $('chip-name').textContent = p.full_name || '同学';
-      $('chip-avatar').textContent = (p.full_name || '学').charAt(0);
-      $('welcome-name').textContent = p.full_name || '同学';
-      $('info-name').textContent = p.full_name || '-';
+      var displayName = p.full_name || p.student_no || '同学';
+      $('chip-name').textContent = displayName;
+      $('chip-avatar').textContent = displayName.charAt(0);
+      $('welcome-name').textContent = displayName;
       $('info-no').textContent = p.student_no || '-';
       $('info-class').textContent = p.class_name || '-';
-      $('info-email').textContent = p.email || '-';
-      document.title = '学生主页 · ' + (p.full_name || '');
+      document.title = '学生主页 · ' + (p.student_no || displayName);
       bindUI();
       updatePendingUI();
       await loadHistory();

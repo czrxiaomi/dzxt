@@ -35,9 +35,10 @@
         <div id="panel-login">
           <div class="form-error-box" id="login-err"></div>
           <div class="field">
-            <label for="login-email">邮箱</label>
-            <input class="input" id="login-email" type="email" inputmode="email" autocomplete="username" placeholder="请输入学校邮箱或常用邮箱">
+            <label for="login-account">学号 / 邮箱</label>
+            <input class="input" id="login-account" type="text" autocomplete="username" placeholder="学生填学号，教师填邮箱">
           </div>
+          <div style="font-size:12.5px;color:var(--ink-3);margin:-6px 0 12px;">学生用学号登录（不用邮箱），教师用邮箱登录</div>
           <div class="field">
             <label for="login-pwd">密码</label>
             <input class="input" id="login-pwd" type="password" autocomplete="current-password" placeholder="请输入密码">
@@ -59,23 +60,27 @@
               <button type="button" data-role="teacher">教师</button>
             </div>
           </div>
-          <div class="field">
-            <label for="reg-name">姓名 <span class="req">*</span></label>
-            <input class="input" id="reg-name" type="text" autocomplete="name" placeholder="请输入真实姓名">
-          </div>
+          <!-- 学生：学号 + 班级（不用姓名、邮箱） -->
           <div id="reg-student-fields">
             <div class="field">
               <label for="reg-no">学号 <span class="req">*</span></label>
-              <input class="input" id="reg-no" type="text" autocomplete="off" placeholder="请输入学号（全校唯一）">
+              <input class="input" id="reg-no" type="text" autocomplete="off" placeholder="请输入学号（全校唯一，登录也用学号）">
             </div>
             <div class="field">
               <label for="reg-class">班级 <span class="req">*</span></label>
               <input class="input" id="reg-class" type="text" autocomplete="off" placeholder="例如：初一（1）班">
             </div>
           </div>
-          <div class="field">
-            <label for="reg-email">邮箱 <span class="req">*</span></label>
-            <input class="input" id="reg-email" type="email" inputmode="email" autocomplete="off" placeholder="用于登录的邮箱">
+          <!-- 教师：姓名 + 邮箱 -->
+          <div id="reg-teacher-fields" style="display:none;">
+            <div class="field">
+              <label for="reg-name">姓名 <span class="req">*</span></label>
+              <input class="input" id="reg-name" type="text" autocomplete="name" placeholder="请输入真实姓名">
+            </div>
+            <div class="field">
+              <label for="reg-email">邮箱 <span class="req">*</span></label>
+              <input class="input" id="reg-email" type="email" inputmode="email" autocomplete="off" placeholder="用于登录的邮箱">
+            </div>
           </div>
           <div class="field">
             <label for="reg-pwd">密码 <span class="req">*</span></label>
@@ -128,6 +133,7 @@
       b.classList.toggle('on', b.getAttribute('data-role') === regRole);
     });
     $('reg-student-fields').style.display = isTeacher ? 'none' : 'block';
+    $('reg-teacher-fields').style.display = isTeacher ? 'block' : 'none';
     $('reg-btn').textContent = isTeacher ? '教师注册' : '学生注册';
     hide('reg-err');
   }
@@ -166,12 +172,12 @@
   }
 
   async function doLogin() {
-    var email = $('login-email').value.trim();
+    var account = $('login-account').value.trim();
     var pwd = $('login-pwd').value;
     var errBox = $('login-err');
     errBox.textContent = ''; errBox.classList.remove('show');
-    if (!emailRe.test(email)) {
-      errBox.textContent = '请输入正确的邮箱格式'; errBox.classList.add('show'); return;
+    if (!account) {
+      errBox.textContent = '请输入学号或邮箱'; errBox.classList.add('show'); return;
     }
     if (!pwd) {
       errBox.textContent = '请输入密码'; errBox.classList.add('show'); return;
@@ -179,7 +185,7 @@
     var btn = $('login-btn');
     setBusy(btn, true, '登录中…');
     try {
-      var r = await APP.auth.login(email, pwd);
+      var r = await APP.auth.login(account, pwd);
       routeHome(r.profile);
     } catch (e) {
       errBox.textContent = APP.auth.friendlyError(e, '登录失败，请稍后重试');
@@ -190,21 +196,22 @@
 
   async function doRegister() {
     var isTeacher = regRole === 'teacher';
-    var name = $('reg-name').value.trim();
+    var name = isTeacher ? $('reg-name').value.trim() : '';
+    var email = isTeacher ? $('reg-email').value.trim() : '';
     var no = isTeacher ? '' : $('reg-no').value.trim();
     var cls = isTeacher ? '' : $('reg-class').value.trim();
-    var email = $('reg-email').value.trim();
     var pwd = $('reg-pwd').value;
     var pwd2 = $('reg-pwd2').value;
     var errBox = $('reg-err');
     errBox.textContent = ''; errBox.classList.remove('show');
 
-    if (!name) { errBox.textContent = '请填写姓名'; errBox.classList.add('show'); return; }
-    if (!isTeacher) {
+    if (isTeacher) {
+      if (!name) { errBox.textContent = '请填写姓名'; errBox.classList.add('show'); return; }
+      if (!emailRe.test(email)) { errBox.textContent = '请输入正确的邮箱格式'; errBox.classList.add('show'); return; }
+    } else {
       if (!no) { errBox.textContent = '请填写学号'; errBox.classList.add('show'); return; }
       if (!cls) { errBox.textContent = '请填写班级'; errBox.classList.add('show'); return; }
     }
-    if (!emailRe.test(email)) { errBox.textContent = '请输入正确的邮箱格式'; errBox.classList.add('show'); return; }
     if (pwd.length < 6) { errBox.textContent = '密码长度至少 6 位'; errBox.classList.add('show'); return; }
     if (pwd !== pwd2) { errBox.textContent = '两次输入的密码不一致'; errBox.classList.add('show'); return; }
 
